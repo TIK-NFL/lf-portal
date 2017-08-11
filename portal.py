@@ -136,13 +136,21 @@ def request_data(what, limit, offset, id=None, sid=None, q=None):
 	req  = urllib2.Request(url)
 	
 	cookie = request.cookies.get('JSESSIONID')
+	print(cookie)
 	if cookie:
 		req.add_header('cookie', 'JSESSIONID="%s"; Path=/; HttpOnly' % cookie)
 
 	req.add_header('Accept', 'application/xml')
 	u = urllib2.urlopen(req)
 	try:
-		data = parseString(u.read())
+		xml = u.read()
+		data = parseString(xml)
+		'''if (xml.startswith('<!')):
+			first, second= xml.split('> ', 1)
+			data= parseString(second.encode('utf-8'))
+			
+		else:
+			data= parseString(xml).documentElement'''
 	finally:
 		u.close()
 	return data
@@ -204,12 +212,16 @@ def prepare_episode(data):
 		contributor = [ c.childNodes[0].data 
 				for c in media.getElementsByTagNameNS('*', 'contributor') ]
 
-		color = seriescolor(series, seriestitle, app.config) if seriescolor else '000000'
+		if  app.config['SERIESCOLOR_PLUGIN'] == 'stuttgart_facultycolors' and len(contributor) != 0:
+			color = seriescolor(series, contributor[0], app.config) if seriescolor else '515151'
+		else:
+			color = seriescolor(series, seriestitle, app.config) if seriescolor else '515151'
 
 		episodes.append( {'id':id, 'title':title, 'series':series,
 			'seriescolor':color,
 			'seriestitle':seriestitle, 'img':img, 'player':player_html,
 			'creator':creator, 'contributor':contributor, 'date':date} )
+		episodes.sort(key=lambda item:item['date'], reverse=True)
 	return episodes
 
 
@@ -224,6 +236,8 @@ def prepare_series(data):
 		if get_xml_val(result, 'mediaType') != 'Series':
 			continue
 		id = result.getAttribute('id')
+		epcounter = request_data('episode', app.config['SERIES_PER_PAGE'],0,sid=id )
+		eptotal = epcounter.getElementsByTagNameNS('*', 'search-results')[0].getAttribute('total')
 		title       = get_xml_val(result, 'dcTitle')
 		description = get_xml_val(result, 'dcDescription')
 		date        = ''
@@ -242,13 +256,100 @@ def prepare_series(data):
 			if c.childNodes:
 				contributor.append( c.childNodes[0].data )
 
-		color = seriescolor(id, title, app.config) if seriescolor else '000000'
+		if  app.config['SERIESCOLOR_PLUGIN'] == 'stuttgart_facultycolors' and len(contributor) != 0:
+			color = seriescolor(id, contributor[0], app.config) if seriescolor else '515151'
+		else:
+			color = seriescolor(id, title, app.config) if seriescolor else '515151'
 
-		series.append( {'id':id, 'title':title, 'creator':creator,
-			'color':color, 'date':date,
-			'contributor':contributor} )
+		if (eptotal != "0"):
+			series.append( {'id':id, 'title':title, 'creator':creator,
+				'color':color, 'date':date,
+				'contributor':contributor} )
 	return series
 
+def prepare_series_precise(data,query=None,type=None):
+	'''Prepare a series result XML for further usage. In other words: Extract
+	all necessary and wanted  values and put them into a dictionary.
+	:param data: XML structure containing the data.
+	'''
+	series = []
+	for result in data.getElementsByTagNameNS('*', 'result'):
+		if get_xml_val(result, 'mediaType') != 'Series':
+			continue
+		id = result.getAttribute('id')
+		epcounter = request_data('episode', app.config['SERIES_PER_PAGE'],0,sid=id )
+		eptotal = epcounter.getElementsByTagNameNS('*', 'search-results')[0].getAttribute('total')
+		title       = get_xml_val(result, 'dcTitle')
+		description = get_xml_val(result, 'dcDescription')
+		date        = ''
+		try:
+			date = dateutil.parser.parse(get_xml_val(result, 'modified'))
+		except:
+			pass
+
+		creator = []
+		for c in result.getElementsByTagNameNS('*', 'dcCreator'):
+			if c.childNodes:
+				creator.append( c.childNodes[0].data )
+
+		contributor = []
+		for c in result.getElementsByTagNameNS('*', 'dcContributor'):
+			if c.childNodes:
+				contributor.append( c.childNodes[0].data )
+
+		if  app.config['SERIESCOLOR_PLUGIN'] == 'stuttgart_facultycolors' and len(contributor) != 0:
+			color = seriescolor(id, contributor[0], app.config) if seriescolor else '515151'
+		else:
+			color = seriescolor(id, title, app.config) if seriescolor else '515151'
+
+		if type == 'creator':
+			if query.replace('&2B',' ') in creator:
+				series.append( {'id':id, 'title':title, 'creator':creator,
+					'color':color, 'date':date,
+					'contributor':contributor} )
+		if type == 'contributor':
+			if query.replace('&2B',' ') in contributor:
+				series.append( {'id':id, 'title':title, 'creator':creator,
+					'color':color, 'date':date,
+					'contributor':contributor} )
+	return series
+
+def prepare_creators(data):
+	'''Prepare a series result XML for further usage. In other words: Extract
+	all necessary and wanted  values and put them into a dictionary.
+	:param data: XML structure containing the data.
+	'''
+	
+	creators = []
+
+	for result in data.getElementsByTagNameNS('*', 'result'):
+		if get_xml_val(result, 'mediaType') != 'Series':
+			continue
+		for c in result.getElementsByTagNameNS('*', 'dcCreator'):
+			if c.childNodes:
+				creators.append( {'creator':c.childNodes[0].data} )
+	creatorsNoDupes = []
+	[creatorsNoDupes.append(i) for i in creators if not creatorsNoDupes.count(i)]
+	return sorted(creatorsNoDupes)
+
+def prepare_contributor(data):
+	'''Prepare a series result XML for further usage. In other words: Extract
+	all necessary and wanted  values and put them into a dictionary.
+	:param data: XML structure containing the data.
+	'''
+	contributor = []
+
+	for result in data.getElementsByTagNameNS('*', 'result'):
+		if get_xml_val(result, 'mediaType') != 'Series':
+			continue
+		for c in result.getElementsByTagNameNS('*', 'dcContributor'):
+			if c.childNodes:
+				contributor.append( { 'contributor':c.childNodes[0].data, 'color':seriescolor('', c.childNodes[0].data, '') if seriescolor else '515151' }  )
+	contributorsNoDupes = []
+	[contributorsNoDupes.append(i) for i in contributor if not contributorsNoDupes.count(i)]
+	return sorted(contributorsNoDupes)
+
+		
 
 @app.route('/')
 @cached(20)
@@ -302,6 +403,30 @@ def serieslist(page=1):
 	pages = [ p+1 for p in xrange((int(total) / app.config['SERIES_PER_PAGE'])+1) ]
 	return render_template('serieslist.html', series=series, pages=pages, activepage=page+1)
 
+
+@app.route('/creatorlist')
+@app.route('/creatorlist/<int:page>')
+@cached()
+def creatorlist(page=1):
+	'''Renders the page which displays a list of all available creators.
+	'''
+	page -= 1
+	data = request_data('series', 9999, 0)
+	total = len(data.getElementsByTagName('dcCreator'))
+	creators = prepare_creators(data)
+	return render_template('creatorlist.html', creators=creators)
+
+@app.route('/contributorlist')
+@app.route('/contributorlist/<int:page>')
+@cached()
+def contributorlist(page=1):
+	'''Renders the page which displays a list of all available contributors.
+	'''
+	page -= 1
+	data = request_data('series', 9999, 0)
+	total = len(data.getElementsByTagName('dcContributor'))
+	contributor = prepare_contributor(data)
+	return render_template('contributorlist.html', contributor=contributor)
 
 @app.route('/recordinglist')
 @app.route('/recordinglist/<int:page>')
@@ -386,6 +511,33 @@ def search(page=1):
 
 	return render_template('search.html', series=series, episodes=episodes,
 			pages=pages, activepage=page+1)
+
+@app.route('/psearch')
+@app.route('/psearch/<int:page>')
+@cached()
+def psearch(page=1):
+	'''Renders the search page. Series results will be displayed at the top of
+	the first page. Episode results will be paged. Each page contains nine
+	episode results.
+	'''
+	page -= 1
+	q     = request.args.get('q')
+	t     = request.args.get('t')
+	limit = app.config.get('SEARCH_RESULTS_PER_PAGE') or 9
+	
+	series = []
+	if not page:
+		data     = request_data('series', 9999, 0, q=q)
+		series   = prepare_series_precise(data,q,t)
+
+	data     = request_data('episode', limit, page * limit, q=q)
+	total    = data.getElementsByTagNameNS('*', 'search-results')[0].getAttribute('total')
+	episodes = prepare_episode(data)
+
+	pages = [ p+1 for p in xrange((int(total) / limit)+1) ]
+
+	return render_template('psearch.html', series=series, episodes=episodes, pages=pages, activepage=page+1)
+		
 
 
 class NoRedirection(urllib2.HTTPErrorProcessor):

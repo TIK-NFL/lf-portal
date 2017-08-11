@@ -18,7 +18,7 @@ sys.setdefaultencoding('utf8')
 def seriescolor(id, title, config):
 	rgb_max    = config['SERIESCOLOR_SUM_MAX']
 	rgb_offset = config['SERIESCOLOR_SUM_OFFSET']
-	rgb        = [0, 0, 0]
+	rgb        = [51, 51, 51]
 
 	s = (id if config.get('SERIESCOLOR_SUM_USE_ID') else '') + \
 			(title if config.get('SERIESCOLOR_SUM_USE_TITLE') else '')
