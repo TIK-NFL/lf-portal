@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block body %}
+<h2>Lecturer</h2>
+
+<table class=contributor>
+        {% for c in creators %}
+        <tr>
+                <td><a href="{{ url_for('psearch', q=c.creator.replace(' ','&2B'), t='creator') }}"> {{ c.creator }}</a></td>
+        </tr>
+        {% else %}
+        <tr><td>No videos matching this query</td></tr>
+        {% endfor %}
+</table>
+<ul class=pager>
+	{% for p in pages %}
+	<li>
+	{% if activepage == p %}
+	<a class=active href="{{ url_for('serieslist', page=p) }}">{{ p }}</a>
+	{%else%}
+	<a href="{{ url_for('serieslist', page=p) }}">{{ p }}</a>
+	{%endif%}
+	</li>
+	{% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block body %}
+<h2>Faculties</h2>
+
+<ul class=series>
+        {% for c in contributor %}
+        <li style="background-color: #{{ c.color }};">
+                <a href="{{ url_for('psearch', q=c.contributor.replace(' ','&2B'), t='contributor') }}"> <h3>{{ c.contributor }}</h3></a>
+        </li>
+        {% else %}
+        <li><em>No videos matching this query</em></li>
+        {% endfor %}
+</ul>
+<ul class=pager>
+	{% for p in pages %}
+	<li>
+	{% if activepage == p %}
+	<a class=active href="{{ url_for('serieslist', page=p) }}">{{ p }}</a>
+	{%else%}
+	<a href="{{ url_for('serieslist', page=p) }}">{{ p }}</a>
+	{%endif%}
+	</li>
+	{% endfor %}
+</ul>
+{% endblock %}

@@ -11,7 +11,7 @@
 
 # Specify the template to use for the portal.
 # Templates are located in the templates/<TEMPLATE> folder.
-TEMPLATE = 'test'
+TEMPLATE = 'uni-stuttgart'
 
 # SEARCH_SERVICE   = 'http://player.oc-test.switch.ch/search'
 # SECURITY_SERVICE = 'http://player.oc-test.switch.ch/admin-ng'

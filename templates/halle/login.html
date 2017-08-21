@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block body %}
+<h2>Anmeldung</h2>
+<form class=loginform action="{{ url_for('login') }}" method=post>
+	{% if error %}
+	<div class=error>{{ error }}</div>
+	{% endif %}
+	Nur für separat freigegebene Nutzer möglich.
+	<dl>
+		<dt>Nutzername:</dt>
+		<dd><input type=text name=username></dd>
+		<dt>Passwort:</dt>
+		<dd><input type=password name=password></dd>
+		<dt></dt>
+		<dd><input type=submit value=Login></dd>
+	</dl>
+</form>
+{% endblock %}
